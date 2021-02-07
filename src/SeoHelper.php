@@ -2,37 +2,44 @@
 
 namespace CEKW\WpPluginFramework\Routing;
 
+use AltoRouter;
 use Yoast\WP\SEO\Presenters\Open_Graph\Locale_Presenter;
 use PLL_WPSEO_OGP;
-use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 
 class SeoHelper
 {
     private array $langLocales;
-    private ?Request $request;
-    private ?UrlGeneratorInterface $urlGenerator;
+    private AltoRouter $router;
+    private string $routeName;
 
-    public function __construct(Request $request, UrlGeneratorInterface $urlGenerator)
+    public function __construct(AltoRouter $router, string $routeName)
     {
+        $this->router = $router;
+        $this->routeName = $routeName;
         $this->langLocales = function_exists('pll_languages_list') ? pll_languages_list(['fields' => 'locale']) : [];
-        $this->request = $request;
-        $this->urlGenerator = $urlGenerator;
     }
 
     public function addAlternateLinks(): void
     {
         add_action('wp_head', function () {
             foreach ($this->langLocales as $locale) {
-                $href = $this->request->getPathInfo();
-                $hreflang = substr($locale, 0, 2);
-                printf('<link rel="alternate" href="%s" hreflang="%s" />' . "\n", esc_url($href), esc_attr($hreflang));
+                $lang = substr($locale, 0, 2);
+                $href = $this->generateUrl($this->routeName, ['_lang' => $lang]);
+                printf('<link rel="alternate" href="%s" hreflang="%s" />' . "\n", esc_url($href), esc_attr($lang));
             }
         });
     }
 
     public function addOgAlternateLocales(): void
     {
+        if (!class_exists(Locale_Presenter::class)) {
+            return;
+        }
+
+        if (!class_exists(PLL_WPSEO_OGP::class)) {
+            return;
+        }
+
         add_filter('wpseo_frontend_presenters', function ($presenters) {
             $return = [];
             foreach ($presenters as $presenter) {
@@ -55,20 +62,44 @@ class SeoHelper
         });
     }
 
-    public function generateUrl(string $route, array $parameters, int $referenceType): string
+    public function generateUrl(string $routeName, array $params = []): string
     {
-        return $this->urlGenerator->generate($route, $parameters, $referenceType);
+        // Get default route name if localized.
+        if (isset($params['_lang']) && strpos($routeName, '.') !== false) {
+            $routeName = explode('.', $routeName)[0];
+        }
+
+        // If language folder is hidden on default language.
+        if (function_exists('pll_current_language') && isset($params['_lang'])) {
+            $polylang = get_option('polylang');
+            if ($polylang['hide_default'] === 1 && pll_default_language() === $params['_lang']) {
+                unset($params['_lang']);
+            }
+        }
+
+        // Pass localized route name if exists.
+        if (!empty($params['_lang'])) {
+            $localizedRouteName = "{$routeName}.{$params['_lang']}";
+            $localizedRouteNameExists = false;
+            foreach ($this->router->getRoutes() as $routes) {
+                if (in_array($localizedRouteName, $routes)) {
+                    $localizedRouteNameExists = true;
+                }
+            }
+
+            if ($localizedRouteNameExists) {
+                $routeName = $localizedRouteName;
+            }
+        }
+
+        return home_url($this->router->generate($routeName, $params));
     }
 
     public function setCurrentUrl(): void
     {
-        add_filter('pll_the_language_link', function () {
-            return home_url($this->request->getPathInfo());
-        });
-
-        add_filter('wpseo_opengraph_url', function () {
-            return home_url($this->request->getPathInfo());
-        });
+        add_filter('pll_the_language_link', fn() => $this->generateUrl($this->routeName));
+        add_filter('wpseo_canonical', fn() => $this->generateUrl($this->routeName));
+        add_filter('wpseo_opengraph_url', fn() => $this->generateUrl($this->routeName));
     }
 
     public function setTitle(string $title): void
@@ -79,23 +110,15 @@ class SeoHelper
             return $titleParts;
         });
 
-        add_filter('wpseo_title', 'wp_get_document_title');
         add_filter('wpseo_opengraph_title', 'wp_get_document_title');
     }
 
     public function setResponseStatus(int $code = 200): void
     {
-        add_filter('status_header', function ($statusHeader, $header, $text, $protocol) use ($code) {
-            return "{$protocol} {$code} " . get_status_header_desc($code);
-        }, 10, 4);
+        add_filter('status_header', fn($statusHeader, $header, $text, $protocol) => "{$protocol} {$code} " . get_status_header_desc($code), 10, 4);
 
         if ($code !== 404) {
-            add_action('template_redirect', function () {
-                // phpcs:disable
-                global $wp_query;
-                $wp_query->is_404 = false;
-                // phpcs:enable
-            });
+            add_action('template_redirect', fn() => $GLOBALS['wp_query']->is_404 = false); // phpcs:ignore
         }
     }
 }

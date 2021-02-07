@@ -18,3 +18,37 @@ There are several scripts to helps You testing Your code or check code-style:
 |patch:cs&#x2011;diff   | composer run patch:cs&#x2011;diff     |Using generated .diff-file to fix code-style|
 |start&#x2011;server:cc | composer run start&#x2011;server:cc   |Run local webserver to display generated coverage files|
 |test                   | composer run test                     |Run unit-tests|
+
+## Adding routes
+
+Create a `web.php` file in `config/routes` and put the following code in it.
+
+```
+add_action('cekw.wp_plugin_framework.routes', function (\CEKW\WpPluginFramework\Routing\RouteCollector $routes) {
+    $routes
+        ->add('/foo/', 'foo')
+        ->setController([FooController::class, 'getBar']);
+});
+```
+
+### Localized routes
+
+```
+$routes
+  ->add('/[en:_lang]?/foo/', 'foo')
+  ->setController([FooController::class, 'getFoo']);
+```
+```
+$routes
+  ->add('/[de|en:_lang]/foo/', 'foo')
+  ->setController([FooController::class, 'getFoo']);
+```
+
+```
+$routes
+  ->add([
+      '' => '/foo/',
+      'de' => '/bar/',
+  ], 'foo')
+  ->setController([FooController::class, 'getFoo']);
+```

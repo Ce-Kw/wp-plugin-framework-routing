@@ -2,45 +2,54 @@
 
 namespace CEKW\WpPluginFramework\Routing;
 
-use Symfony\Component\Routing\Route;
-use Symfony\Component\Routing\RouteCollection;
+use AltoRouter;
 
 class RouteCollector
 {
-    private ?RouteCollection $collection;
-    private string $currentName = '';
 
-    /**
-     * @var Route[]
-     */
+    private AltoRouter $router;
+    private string $currentName;
     private array $routes = [];
 
-    public function __construct(RouteCollection $collection)
+    public function __construct(AltoRouter $router)
     {
-        $this->collection = $collection;
+        $this->router = $router;
     }
 
     /**
-     * @param array|string $path
+     * @param string|array $path
      */
-    public function add(string $name, $path): RouteCollector
+    public function add($path, string $name = ''): RouteCollector
     {
-        $this->currentName = $name;
-        $this->routes[$this->currentName] = new Route($path);
+        $this->currentName = !empty($name) ? $name :  md5($path);
+        $this->routes[$this->currentName] = [
+            'methods' => 'GET|POST|PATCH|PUT|DELETE',
+            'path' => $path,
+        ];
 
         return $this;
     }
 
-    public function getRoutes(): RouteCollection
+    public function setMethods(array $methods): RouteCollector
     {
-        return $this->collection;
+        $this->routes[$this->currentName]['methods'] = implode('|', $methods);
+
+        return $this;
     }
 
     public function setController(array $controller): void
     {
-        $this->collection->add(
-            $this->currentName,
-            $this->routes[$this->currentName]->addDefaults(['_controller' => $controller])
-        );
+        $currentRoute = $this->routes[$this->currentName];
+        if (is_array($currentRoute['path'])) {
+            foreach ($currentRoute['path'] as $lang => $langPath) {
+                if (!empty($lang)) {
+                    $this->router->map($currentRoute['methods'], '/' . $lang . $langPath, $controller, "{$this->currentName}.{$lang}");
+                } else {
+                    $this->router->map($currentRoute['methods'], $langPath, $controller, $this->currentName);
+                }
+            }
+        } else {
+            $this->router->map($currentRoute['methods'], $currentRoute['path'], $controller, $this->currentName);
+        }
     }
 }

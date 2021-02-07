@@ -18,9 +18,9 @@ abstract class AbstractController implements ControllerInterface
         $this->seoHelper->setTitle($title);
     }
 
-    protected function generateUrl(string $route, array $parameters = [], int $referenceType = UrlGeneratorInterface::ABSOLUTE_PATH): string
+    protected function generateUrl(string $routeName, array $params = []): string
     {
-        return $this->seoHelper->generateUrl($route, $parameters, $referenceType);
+        return $this->seoHelper->generateUrl($routeName, $params);
     }
 
     protected function redirect(string $url, int $status = 302): void
@@ -29,14 +29,14 @@ abstract class AbstractController implements ControllerInterface
         exit();
     }
 
-    protected function redirectToRoute(string $route, array $parameters = [], int $status = 302): void
+    protected function redirectToRoute(string $routeName, array $params = [], int $status = 302): void
     {
-        $this->redirect($this->generateUrl($route, $parameters), $status);
+        $this->redirect($this->generateUrl($routeName, $params), $status);
     }
 
-    protected function render(string $template, array $parameters = []): void
+    protected function render(string $template, array $params = []): void
     {
-        foreach ($parameters as $key => $value) {
+        foreach ($params as $key => $value) {
             set_query_var($key, $value);
         }
 
