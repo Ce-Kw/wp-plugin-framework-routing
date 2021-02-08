@@ -21,7 +21,7 @@ class RouteCollector
      */
     public function add($path, string $name = ''): RouteCollector
     {
-        $this->currentName = !empty($name) ? $name :  md5($path);
+        $this->currentName = !empty($name) ? $name :  md5(serialize($path));
         $this->routes[$this->currentName] = [
             'methods' => 'GET|POST|PATCH|PUT|DELETE',
             'path' => $path,

@@ -64,12 +64,13 @@ class SeoHelper
 
     public function generateUrl(string $routeName, array $params = []): string
     {
-        // Get default route name if localized.
+        // If we are on a page with a localized route name (e.g. my_route.en) return default route name.
+        // This way we can find all other localized routes within the same name.
         if (isset($params['_lang']) && strpos($routeName, '.') !== false) {
             $routeName = explode('.', $routeName)[0];
         }
 
-        // If language folder is hidden on default language.
+        // If we are on a page with the default language remove the lang parameter since it is not part of the URL nor the route name.
         if (function_exists('pll_current_language') && isset($params['_lang'])) {
             $polylang = get_option('polylang');
             if ($polylang['hide_default'] === 1 && pll_default_language() === $params['_lang']) {
@@ -77,7 +78,8 @@ class SeoHelper
             }
         }
 
-        // Pass localized route name if exists.
+        // Check if localized route name (e.g. my_route.en) with current language exists and return it.
+        // So that the router will generate the localized URL.
         if (!empty($params['_lang'])) {
             $localizedRouteName = "{$routeName}.{$params['_lang']}";
             $localizedRouteNameExists = false;
