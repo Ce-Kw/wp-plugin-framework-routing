@@ -39,7 +39,7 @@ class RoutingPackage extends AbstractPackage
 
         $classInstance = $this->injector->make($class);
         if ($classInstance instanceof ControllerInterface) {
-            $classInstance->setSeoHelper(new SeoHelper($this->router, $match['name']));
+            $classInstance->setSeoHelper(new SeoHelper($this->router, $match));
         }
 
         $this->injector->execute([$classInstance, $method], $args);

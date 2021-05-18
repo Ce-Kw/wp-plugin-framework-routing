@@ -11,11 +11,13 @@ class SeoHelper
     private array $langLocales;
     private AltoRouter $router;
     private string $routeName;
+    private array $params;
 
-    public function __construct(AltoRouter $router, string $routeName)
+    public function __construct(AltoRouter $router, array $match)
     {
         $this->router = $router;
-        $this->routeName = $routeName;
+        $this->routeName = $match['name'];
+        $this->params = $match['params'];
         $this->langLocales = function_exists('pll_languages_list') ? pll_languages_list(['fields' => 'locale']) : [];
     }
 
@@ -64,6 +66,8 @@ class SeoHelper
 
     public function generateUrl(string $routeName, array $params = []): string
     {
+        $params = array_merge($this->params, $params);
+
         // If we are on a page with a localized route name (e.g. my_route.en) return default route name.
         // This way we can find all other localized routes within the same name.
         if (isset($params['_lang']) && strpos($routeName, '.') !== false) {
